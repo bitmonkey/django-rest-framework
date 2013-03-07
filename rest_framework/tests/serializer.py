@@ -268,7 +268,16 @@ class ValidationTests(TestCase):
         data = ['i am', 'a', 'list']
         serializer = CommentSerializer(self.comment, data=data, many=True)
         self.assertEqual(serializer.is_valid(), False)
-        self.assertEqual(serializer.errors, {'non_field_errors': ['Invalid data']})
+        self.assertTrue(isinstance(serializer.errors, list))
+
+        self.assertEqual(
+            serializer.errors, 
+            [
+                {'data[0]': {'non_field_errors': ['Invalid data']}},
+                {'data[1]': {'non_field_errors': ['Invalid data']}},
+                {'data[2]': {'non_field_errors': ['Invalid data']}}
+            ]
+        )
 
         data = 'and i am a string'
         serializer = CommentSerializer(self.comment, data=data)
@@ -1072,3 +1081,22 @@ class NestedSerializerContextTests(TestCase):
 
         # This will raise RuntimeError if context doesn't get passed correctly to the nested Serializers
         AlbumCollectionSerializer(album_collection, context={'context_item': 'album context'}).data
+
+
+class DeserializeListTestCase(TestCase):
+
+    def test_errors_return_as_list(self):
+        bad_data = [
+            {'isbn': '1'*13},
+            {'isbn': '2222'}, # invalid instance
+            {'isbn': '3'*13},
+
+        ]
+        serializer = BookSerializer(data=bad_data)
+        self.assertFalse(serializer.is_valid())
+        self.assertTrue(isinstance(serializer.errors, list))
+        self.assertTrue(1, len(serializer.errors))
+        self.assertEqual(
+            [{'data[1]': {'isbn': ['isbn has to be exact 13 numbers']}}],
+            serializer.errors
+        )
