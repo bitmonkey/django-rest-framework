@@ -271,11 +271,11 @@ class ValidationTests(TestCase):
         self.assertTrue(isinstance(serializer.errors, list))
 
         self.assertEqual(
-            serializer.errors, 
+            serializer.errors,
             [
-                {'data[0]': {'non_field_errors': ['Invalid data']}},
-                {'data[1]': {'non_field_errors': ['Invalid data']}},
-                {'data[2]': {'non_field_errors': ['Invalid data']}}
+                (0, {'non_field_errors': ['Invalid data']}),
+                (1, {'non_field_errors': ['Invalid data']}),
+                (2, {'non_field_errors': ['Invalid data']})
             ]
         )
 
@@ -1085,18 +1085,33 @@ class NestedSerializerContextTests(TestCase):
 
 class DeserializeListTestCase(TestCase):
 
-    def test_errors_return_as_list(self):
-        bad_data = [
-            {'isbn': '1'*13},
-            {'isbn': '2222'}, # invalid instance
-            {'isbn': '3'*13},
+    def setUp(self):
+        self.data = {
+            'email': 'nobody@nowhere.com',
+            'content': 'This is some test content',
+            'created': datetime.datetime(2013, 3, 7),
+        }
 
-        ]
-        serializer = BookSerializer(data=bad_data)
+    def test_no_errors(self):
+        data = [self.data.copy() for x in range(0, 3)]
+        serializer = CommentSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+        self.assertTrue(isinstance(serializer.object, list))
+        self.assertTrue(
+            all((isinstance(item, Comment) for item in serializer.object))
+        )
+
+    def test_errors_return_as_list(self):
+        invalid_item = self.data.copy()
+        invalid_item['email'] = ''
+        data = [self.data.copy(), invalid_item, self.data.copy()]
+
+        serializer = CommentSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         self.assertTrue(isinstance(serializer.errors, list))
-        self.assertTrue(1, len(serializer.errors))
+        self.assertEqual(1, len(serializer.errors))
+        expected = (1, {'email': ['This field is required.']})
         self.assertEqual(
-            [{'data[1]': {'isbn': ['isbn has to be exact 13 numbers']}}],
-            serializer.errors
+            serializer.errors[0],
+            expected
         )
